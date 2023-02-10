@@ -1,0 +1,120 @@
+import pandas as pd
+import spacy
+from matplotlib import pyplot as plt
+
+MAIN_DATA = pd.read_csv("LEM.csv")
+
+nlp = spacy.load('pl_core_news_lg')
+months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+dni = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela']
+ilosc_tweetow_dni = {}
+Tweet_URL = []
+URLs_In_Tweets = []
+Media = []
+filtered_sentence = []
+No_Stop_Words = []
+persName = []
+placeName = []
+orgName = []
+
+#CZĘŚĆ 1
+
+#zadanie 1
+for x in range(0, 7):
+    MAIN_DATA['created_at'] = MAIN_DATA.created_at.replace({days[x]: dni[x]}, regex=True)
+#zadanie 2
+for x in range(0, 12):
+    if x < 10:
+        MAIN_DATA['created_at'] = MAIN_DATA.created_at.replace({months[x]: '0' + str(x+1)}, regex=True)
+    else:
+        MAIN_DATA['created_at'] = MAIN_DATA.created_at.replace({months[x]: str(x+1)}, regex=True)
+
+#zadanie 3
+for x in MAIN_DATA['tweet_url']:
+    if isinstance(x, str):
+        Tweet_URL.append(x)
+
+#zadanie 4
+for x in MAIN_DATA['urls']:
+    if isinstance(x, str):
+        URLs_In_Tweets.append(x)
+
+#zadanie5
+for x in MAIN_DATA['media']:
+    if isinstance(x, str):
+        Media.append(x)
+
+#zadanie 6
+for x in MAIN_DATA['text']:
+    pom = nlp(x)
+    No_Stop_Words_Pom = ''
+    for token in pom:
+        if token.is_stop != True:
+            No_Stop_Words_Pom = No_Stop_Words_Pom + ' ' + token.text
+    No_Stop_Words.append(No_Stop_Words_Pom.strip())
+
+MAIN_DATA['text_without_stopwords'] = No_Stop_Words
+
+
+#CZĘŚĆ 2
+
+#zadanie 1
+print("TOP 5 TWEETOW Z NAJWIEKSZA ILOSCIA LIKOW\n")
+print((MAIN_DATA.sort_values(by=['favorite_count'], ascending=False).head(5)).to_string())
+
+#zadanie 2
+print("\n\n\nTOP 5 TWEETOW Z NAJWIEKSZA ILOSCIA RETWEETOW\n")
+print((MAIN_DATA.sort_values(by=['retweet_count'], ascending=False).head(5)).to_string())
+
+#zadanie 3
+print("\n\n\nTYLKO TWEETY KTORE NIE UZNANO ZA WRAZLIWE\n")
+print((MAIN_DATA.loc[MAIN_DATA['possibly_sensitive'] == False]).to_string())
+
+#zadanie 4
+print("\n\n\nTYLKO TWEETY NAJWCZEŚNIEJ UTWORZONEGO UŻYTKOWNIKA\n")
+oldest_user_id = (MAIN_DATA.sort_values(by=['user_created_at']).tail(1))['user_id'].to_string(index=False)
+print((MAIN_DATA.loc[MAIN_DATA['user_id'] == int(oldest_user_id)]).to_string())
+
+#zadanie 5
+print("\n\n\nTYLKO TWEETY UŻYTKOWNIKA Z NAJWIĘKSZĄ ILOŚCIĄ FOLLOWERSÓW\n")
+most_followers_user_id = (MAIN_DATA.sort_values(by=['user_followers_count']).tail(1))['user_id'].to_string(index=False)
+print((MAIN_DATA.loc[MAIN_DATA['user_id'] == int(most_followers_user_id)]).to_string())
+
+#zadanie 6
+print("\n\n\nTYLKO ZWERYFIKOWANI UŻYTKOWNICY\n")
+print(((MAIN_DATA.loc[MAIN_DATA['user_verified'] == True])['user_name'].drop_duplicates()).to_string(index=False,))
+
+#zadanie 7
+for x in range(0,7):
+    ilosc_tweetow_dni[dni[x]]=(MAIN_DATA['created_at'].str.contains(dni[x], regex=True).sum())
+
+print("\n\n\n\nNajwięcej tweetów zostało przesłanych w " + max(ilosc_tweetow_dni, key=ilosc_tweetow_dni.get) + ' (ilość: ' + str(max(ilosc_tweetow_dni.values())) + ')')
+
+#CZĘŚĆ 3
+
+#zadanie 1, 2, 3
+for x in MAIN_DATA['text']:
+    pom = nlp(x)
+    NamesCell = ''
+    PlaceCell = ''
+    OrganizationCell = ''
+    for ent in pom.ents:
+        if ent.label_ == 'persName':
+            NamesCell += ent.text + ' '
+        elif ent.label_ == 'placeName':
+            PlaceCell += ent.text + ' '
+        elif ent.label_ == 'orgName':
+            OrganizationCell += ent.text + ' '
+
+    persName.append(NamesCell.strip())
+    placeName.append(PlaceCell.strip())
+    orgName.append(OrganizationCell.strip())
+
+MAIN_DATA['persName'] = persName
+MAIN_DATA['placeName'] = placeName
+MAIN_DATA['orgName'] = orgName
+
+#CZĘŚĆ 4
+plt.bar(*zip(*ilosc_tweetow_dni.items()))
+plt.show()
